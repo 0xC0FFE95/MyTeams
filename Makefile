@@ -1,7 +1,7 @@
 # Nom des fichiers sources et exécutables
 CC = gcc
 CFLAGS = -Wall -Wextra -Werror -std=c11
-SERVER_SRC = server.c
+SERVER_SRC = Server.c
 CLIENT_SRC = client.c
 SERVER_BIN = server
 CLIENT_BIN = client
