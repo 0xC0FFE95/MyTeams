@@ -21,18 +21,23 @@ int client_count = 0;
 void broadcast_message(char *message, int sender_sock) {
     for (int i = 0; i < client_count; i++) {
         if (clients[i].socket != sender_sock) {
-            size_t len = strlen(message);
-            size_t sent = 0;
-            while (sent < len) {
-                ssize_t bytes = write(clients[i].socket, message + sent, len - sent);
-                if (bytes > 0) {
-                    sent += bytes;
-                } else {
-                    break;
-                }
-            }
+            send(clients[i].socket, message, strlen(message), 0);
         }
     }
+}
+
+// Fonction pour envoyer la liste des clients connectés
+void send_client_list(int client_sock) {
+    char list_message[BUFFER_SIZE] = "Clients connectés : ";
+    for (int i = 0; i < client_count; i++) {
+        strcat(list_message, clients[i].pseudo);
+        if (i < client_count - 1) {
+            strcat(list_message, ", ");
+        }
+    }
+    strcat(list_message, "\n");
+
+    send(client_sock, list_message, strlen(list_message), 0);
 }
 
 void remove_client(int client_sock) {
@@ -40,9 +45,7 @@ void remove_client(int client_sock) {
         if (clients[i].socket == client_sock) {
             printf("Client %s disconnected\n", clients[i].pseudo);
             close(clients[i].socket);
-            for (int j = i; j < client_count - 1; j++) {
-                clients[j] = clients[j + 1];
-            }
+            clients[i] = clients[client_count - 1]; // Éviter le décalage
             client_count--;
             break;
         }
@@ -79,7 +82,7 @@ int main(int argc, char *argv[]) {
 
     printf("My Teams Connect...OK\n");
 
-    if (listen(server_sock, MAX_CLIENTS) < 0) {
+    if (listen(server_sock, 5) < 0) {
         perror("listen");
         return 1;
     }
@@ -106,27 +109,21 @@ int main(int argc, char *argv[]) {
             if (client_sock > 0) {
                 if (client_count < MAX_CLIENTS) {
                     clients[client_count].socket = client_sock;
-                    read(client_sock, clients[client_count].pseudo, 31);
+                    if (read(client_sock, clients[client_count].pseudo, 31) <= 0) {
+                        printf("Erreur lors de la réception du pseudo\n");
+                        close(client_sock);
+                        continue;
+                    }
                     clients[client_count].pseudo[31] = '\0';
                     clients[client_count].address = client_addr;
+
                     printf("Client %s connected from %s\n", clients[client_count].pseudo, inet_ntoa(client_addr.sin_addr));
+
+                    send_client_list(client_sock); // Envoi de la liste des clients
+
                     client_count++;
                 } else {
                     close(client_sock);
-                }
-            }
-        }
-
-        for (int i = 0; i < client_count; i++) {
-            if (FD_ISSET(clients[i].socket, &read_fds)) {
-                int bytes_read = read(clients[i].socket, buffer, BUFFER_SIZE - 1);
-                if (bytes_read > 0) {
-                    buffer[bytes_read] = '\0';
-                    char message[BUFFER_SIZE + 32];
-                    snprintf(message, sizeof(message), "%.31s: %.1020s", clients[i].pseudo, buffer);
-                    broadcast_message(message, clients[i].socket);
-                } else if (bytes_read == 0) {
-                    remove_client(clients[i].socket);
                 }
             }
         }
