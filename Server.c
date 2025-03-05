@@ -81,6 +81,8 @@ int main(int argc, char *argv[]) {
     }
 
     printf("My Teams Connect...OK\n");
+     printf("Bind OK\n");                                                                                                   
+    printf("IP Serveur : 103.252.88.62 sur le port : %s \n", argv[1]);
 
     if (listen(server_sock, 5) < 0) {
         perror("listen");
